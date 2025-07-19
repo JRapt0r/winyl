@@ -32,14 +32,13 @@ LyricsLoader::LyricsLoader()
 
 LyricsLoader::~LyricsLoader()
 {
-	
+
 }
 
 long long LyricsLoader::timePrev = 0;
 
 wchar_t* LyricsLoader::providers[] =
 {
-	L"lyrics.wikia.com",
 	L"musixmatch.com",
 	L"azlyrics.com",
 	L"letras.mus.br",
@@ -176,30 +175,30 @@ bool LyricsLoader::LoadLyricsFromInternet(const std::wstring& artist, const std:
 
 	if (timeNow - timePrev <= timeoutLyrics)
 		Threading::ThreadSleep((unsigned)std::max(0LL, timeoutLyrics - (timeNow - timePrev)));
-	
+
 	if (FilterInputIsAscii(urlArtist) && FilterInputIsAscii(urlTitle))
 	{
 		FilterInputRemoveBraces(urlTitle);
 
 		std::string lyrics;
 
-		assert(providersCount == 8);
+		assert(providersCount == 7);
 
 		if (provider.empty())
-			lyrics = ProviderLyricsWikiaCom(urlArtist, urlTitle);
-		else if (provider == providers[1])
 			lyrics = ProviderMusixmatchCom(urlArtist, urlTitle);
-		else if (provider == providers[2])
+		else if (provider == providers[0])
+			lyrics = ProviderMusixmatchCom(urlArtist, urlTitle);
+		else if (provider == providers[1])
 			lyrics = ProviderAZLyricsCom(urlArtist, urlTitle);
-		else if (provider == providers[3])
+		else if (provider == providers[2])
 			lyrics = ProviderLetrasMusBr(urlArtist, urlTitle);
-		else if (provider == providers[4])
+		else if (provider == providers[3])
 			lyrics = ProviderLyricsManiaCom(urlArtist, urlTitle);
-		else if (provider == providers[5])
+		else if (provider == providers[4])
 			lyrics = ProviderSongLyricsCom(urlArtist, urlTitle);
-		else if (provider == providers[6])
+		else if (provider == providers[5])
 			lyrics = ProviderGeniusCom(urlArtist, urlTitle);
-		else if (provider == providers[7])
+		else if (provider == providers[6])
 			lyrics = ProviderOldieLyricsCom(urlArtist, urlTitle);
 
 		LyricsToLines(lyrics);
@@ -213,9 +212,9 @@ bool LyricsLoader::LoadLyricsFromInternet(const std::wstring& artist, const std:
 		std::string lyrics;
 
 		if (provider.empty())
-			lyrics = ProviderLyricsWikiaCom(urlArtist, urlTitle);
-		else if (provider == providers[1])
 			lyrics = ProviderMusixmatchCom(urlArtist, urlTitle);
+		else if (provider == providers[1])
+			lyrics = ProviderAZLyricsCom(urlArtist, urlTitle);
 
 		LyricsToLines(lyrics);
 
@@ -465,7 +464,7 @@ std::string LyricsLoader::FilterOutputHtmlTags(const std::string &str, bool enco
 
 void LyricsLoader::FilterOutputHtmlEncode(const std::string &src, std::size_t start, std::size_t end, std::string &dst)
 {
-	// Encode HTML in format &#123;&#234; to UTF8 text
+	// Encode HTML in format {ê to UTF8 text
 	// http://en.wikipedia.org/wiki/Character_encodings_in_HTML
 
 	if (start >= end || end > src.size())
@@ -526,49 +525,6 @@ void LyricsLoader::FilterOutputTrim(std::string &str)
 {
 	str.erase(0, str.find_first_not_of(" \t\r\n"));
 	str.erase(str.find_last_not_of(" \t\r\n") + 1);
-}
-
-std::string LyricsLoader::ProviderLyricsWikiaCom(const std::string& urlArtist, const std::string& urlTitle)
-{
-	std::string lyrics;
-
-	std::string artist = urlArtist;
-	std::string title = urlTitle;
-	std::replace(artist.begin(), artist.end(), ' ', '_');
-	std::replace(title.begin(), title.end(), ' ', '_');
-	artist = FilterInputUriEncode(artist, true);
-	title = FilterInputUriEncode(title, true);
-
-	std::string url = "http://lyrics.wikia.com/wiki/" + artist + ":" + title;
-
-	if (HttpClient::GetHttpPage(url, lyrics))
-	{
-		if (!lyrics.empty())
-		{
-			lyrics = FilterOutputFromTo(lyrics, "<div class='lyricbox'>", "</div>");
-
-			if (!lyrics.empty())
-			{
-				lyrics = FilterOutputHtmlTags(lyrics, true);
-				FilterOutputTrim(lyrics);
-			}
-		}
-	}
-/*
-	std::string url = "http://lyrics.wikia.com/" + artist + ":" + title + "?action=edit";
-
-	if (HttpClient::GetHttpPage(url, lyrics))
-	{
-		if (!lyrics.empty())
-		{
-			lyrics = FilterOutputFromTo(lyrics, "&lt;lyrics>", "&lt;/lyrics>");
-
-			if (!lyrics.empty())
-				FilterOutputTrim(lyrics);
-		}
-	}
-*/
-	return lyrics;
 }
 
 std::string LyricsLoader::ProviderAZLyricsCom(const std::string& urlArtist, const std::string& urlTitle)
@@ -804,7 +760,7 @@ std::string LyricsLoader::ProviderLetrasMusBr(const std::string& urlArtist, cons
 
 std::string LyricsLoader::ProviderMusixmatchCom(const std::string& urlArtist, const std::string& urlTitle)
 {
-	std::string lyrics;
+	std::string pageContent;
 
 	std::string artist = FilterInputStripSpaces(urlArtist, '-');
 	std::string title = FilterInputStripSpaces(urlTitle, '-');
@@ -813,35 +769,74 @@ std::string LyricsLoader::ProviderMusixmatchCom(const std::string& urlArtist, co
 
 	std::string url = "https://www.musixmatch.com/lyrics/" + artist + "/" + title;
 
-	if (HttpClient::GetHttpPage(url, lyrics))
+	if (HttpClient::GetHttpPage(url, pageContent))
 	{
-		if (!lyrics.empty())
+		if (!pageContent.empty())
 		{
-			lyrics = FilterOutputFromTo(lyrics, "<p class=\"mxm-lyrics__content \">", "</span></p></div></span>");
+			// The new Musixmatch format embeds the lyrics in a JSON object
+			// within a <script> tag. This is more reliable to parse than the HTML itself.
+			const std::string scriptTagStart = "<script id=\"__NEXT_DATA__\" type=\"application/json\">";
+			const std::string scriptTagEnd = "</script>";
 
-			// Remove script part
-			if (!lyrics.empty())
+			std::string jsonData = FilterOutputFromTo(pageContent, scriptTagStart, scriptTagEnd);
+
+			if (!jsonData.empty())
 			{
-				std::string from = "</p>"; //"googletag.cmd.push";
-				std::string to = "});";
-				std::size_t findFrom = lyrics.find(from);
-				if (findFrom != std::string::npos)
+				// To avoid adding a full JSON parser dependency, we'll extract the lyrics body
+				// using string manipulation. We are looking for the "body" key inside the JSON.
+				const std::string bodyKey = "\"body\":\"";
+				std::size_t bodyStartPos = jsonData.find(bodyKey);
+
+				if (bodyStartPos != std::string::npos)
 				{
-					std::size_t findTo = lyrics.find(to, findFrom + from.size());
-					if (findTo != std::string::npos)
+					// Move the position to the start of the actual lyrics text
+					bodyStartPos += bodyKey.length();
+
+					// The lyrics string is terminated by a quote character.
+					std::size_t bodyEndPos = jsonData.find("\"", bodyStartPos);
+
+					if (bodyEndPos != std::string::npos)
 					{
-						lyrics.erase(findFrom, findTo - findFrom + to.size());
+						std::string lyrics = jsonData.substr(bodyStartPos, bodyEndPos - bodyStartPos);
+
+						// The JSON string contains escaped characters. We need to un-escape them.
+						// This implementation assumes a StringEx::Replace helper exists in your codebase,
+						// similar to the other StringEx functions used.
+						// Common escapes: \\n -> newline, \\' -> ', \\" -> "
+
+						// A simple, manual un-escaping implementation if StringEx::Replace is not available
+						// or doesn't handle this correctly.
+						std::string unescapedLyrics;
+						unescapedLyrics.reserve(lyrics.length());
+						for (size_t i = 0; i < lyrics.length(); ++i)
+						{
+							if (lyrics[i] == '\\' && i + 1 < lyrics.length())
+							{
+								switch (lyrics[++i])
+								{
+									case 'n':  unescapedLyrics += '\n'; break;
+									case '\'': unescapedLyrics += '\''; break;
+									case '"':  unescapedLyrics += '"';  break;
+									case '\\': unescapedLyrics += '\\'; break;
+									default:   unescapedLyrics += '\\'; unescapedLyrics += lyrics[i]; break;
+								}
+							}
+							else
+							{
+								unescapedLyrics += lyrics[i];
+							}
+						}
+
+						lyrics = unescapedLyrics;
+
+						// The final trim will clean up any residual whitespace.
+						FilterOutputTrim(lyrics);
+						return lyrics;
 					}
 				}
-			}
-
-			if (!lyrics.empty())
-			{
-				lyrics = FilterOutputHtmlTags(lyrics, false, false, false, true);
-				FilterOutputTrim(lyrics);
 			}
 		}
 	}
 
-	return lyrics;
+	return ""; // Return an empty string if lyrics are not found
 }
