@@ -24,7 +24,7 @@ class LyricsLoader
 public:
 	LyricsLoader();
 	~LyricsLoader();
-	
+
 	bool LoadLyricsFromFile(const std::wstring& file);
 	bool LoadLyricsFromTags(const std::wstring& file);
 	bool LoadLyricsFromInternet(const std::wstring& artist, const std::wstring& title, const std::wstring& provider);
@@ -65,7 +65,6 @@ private:
 	void FilterOutputHtmlEncode(const std::string &src, std::size_t start, std::size_t end, std::string &dst);
 	void FilterOutputTrim(std::string &str);
 
-	std::string ProviderLyricsWikiaCom(const std::string& urlArtist, const std::string& urlTitle);
 	std::string ProviderAZLyricsCom(const std::string& urlArtist, const std::string& urlTitle);
 	std::string ProviderMetroLyricsCom(const std::string& urlArtist, const std::string& urlTitle);
 	std::string ProviderSongLyricsCom(const std::string& urlArtist, const std::string& urlTitle);
@@ -76,4 +75,3 @@ private:
 	std::string ProviderLetrasMusBr(const std::string& urlArtist, const std::string& urlTitle);
 	std::string ProviderMusixmatchCom(const std::string& urlArtist, const std::string& urlTitle);
 };
-
