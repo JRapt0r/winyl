@@ -22,6 +22,7 @@
 #include "DropTargetOpen.h"
 #include "ExImage.h"
 #include "FileSystem.h"
+#include <VersionHelpers.h>
 
 FutureWin* futureWin = nullptr;
 
@@ -45,7 +46,7 @@ void WinylApp::Init()
 {
 	INITCOMMONCONTROLSEX InitCtrls = {};
 	InitCtrls.dwSize = sizeof(InitCtrls);
-	InitCtrls.dwICC = ICC_WIN95_CLASSES|ICC_LINK_CLASS;
+	InitCtrls.dwICC = ICC_WIN95_CLASSES | ICC_LINK_CLASS;
 	::InitCommonControlsEx(&InitCtrls);
 
 	bool cmdEmbedding = false;
@@ -58,12 +59,8 @@ void WinylApp::Init()
 	// Remove file associations when start with /Unregister command line flag
 	if (cmdUnregister)
 	{
-		OSVERSIONINFO osVersion = {};
-		osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-		::GetVersionEx(&osVersion);
-
 		Associations assoc;
-		assoc.RemoveAllAssoc(osVersion.dwMajorVersion >= 6 ? true : false);
+		assoc.RemoveAllAssoc(::IsWindowsVistaOrGreater());
 		return;
 	}
 
@@ -173,58 +170,58 @@ void WinylApp::Init()
 	//Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
 	{ // Start
-	ExImage::Source::ImagingFactory::Instance().Init();
+		ExImage::Source::ImagingFactory::Instance().Init();
 
-	WinylWnd winylWnd;
-	winylWnd.SetPortableProfile(isPortableProfile);
-	winylWnd.SetPortableVersion(isPortableVersion);
-	winylWnd.SetProgramPath(std::move(programPath));
-	winylWnd.SetProfilePath(std::move(profilePath));
-	winylWnd.SetOpenFiles(openFiles);
-	if (winylWnd.NewWindow())
-	{
-		winylWnd.RunShowWindow();
-		winylWnd.PrepareLibrary();
-
-		HACCEL accelerators = ::LoadAccelerators(::GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_ACCELERATOR));
-
-		MSG msg;
-		while (::GetMessage(&msg, NULL, 0, 0))// > 0)
+		WinylWnd winylWnd;
+		winylWnd.SetPortableProfile(isPortableProfile);
+		winylWnd.SetPortableVersion(isPortableVersion);
+		winylWnd.SetProgramPath(std::move(programPath));
+		winylWnd.SetProfilePath(std::move(profilePath));
+		winylWnd.SetOpenFiles(openFiles);
+		if (winylWnd.NewWindow())
 		{
-			// Do not use it yet (affects only DlgProgress anyway)
-			//if (DialogEx::IsDialogExMessage(&msg))
-			//	continue;
+			winylWnd.RunShowWindow();
+			winylWnd.PrepareLibrary();
 
-			// If dragging something then process Escape key here to stop Drag'n'Drop
-			// Also in WindowProc of the main window process WM_ACTIVATE we can't do it here
-			if (winylWnd.isDragDrop)
+			HACCEL accelerators = ::LoadAccelerators(::GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_ACCELERATOR));
+
+			MSG msg;
+			while (::GetMessage(&msg, NULL, 0, 0))// > 0)
 			{
-				//if (msg.message == WM_SYSKEYDOWN)
+				// Do not use it yet (affects only DlgProgress anyway)
+				//if (DialogEx::IsDialogExMessage(&msg))
 				//	continue;
-				if (msg.message == WM_KEYDOWN)
-				{
-					if (msg.wParam == VK_ESCAPE)
-						winylWnd.StopDragDrop();
-				//	else
-				//		continue;
-				}
-			}
-			if (!winylWnd.skinEdit->IsFocus())
-				::TranslateAccelerator(winylWnd.Wnd(), accelerators, &msg);
 
-			winylWnd.PreTranslateMouseWheel(&msg); // Send mouse wheel messages from here
-			winylWnd.PreTranslateRelayEvent(&msg);
-			::TranslateMessage(&msg);
-			//winylWnd.toolTips.RelayEvent(&msg);
-			::DispatchMessage(&msg);
+				// If dragging something then process Escape key here to stop Drag'n'Drop
+				// Also in WindowProc of the main window process WM_ACTIVATE we can't do it here
+				if (winylWnd.isDragDrop)
+				{
+					//if (msg.message == WM_SYSKEYDOWN)
+					//	continue;
+					if (msg.message == WM_KEYDOWN)
+					{
+						if (msg.wParam == VK_ESCAPE)
+							winylWnd.StopDragDrop();
+						//	else
+						//		continue;
+					}
+				}
+				if (!winylWnd.skinEdit->IsFocus())
+					::TranslateAccelerator(winylWnd.Wnd(), accelerators, &msg);
+
+				winylWnd.PreTranslateMouseWheel(&msg); // Send mouse wheel messages from here
+				winylWnd.PreTranslateRelayEvent(&msg);
+				::TranslateMessage(&msg);
+				//winylWnd.toolTips.RelayEvent(&msg);
+				::DispatchMessage(&msg);
+			}
+
+			::DestroyAcceleratorTable(accelerators);
 		}
 
-		::DestroyAcceleratorTable(accelerators);
-	}
+		ExImage::Source::ImagingFactory::Instance().Free();
 
-	ExImage::Source::ImagingFactory::Instance().Free();
-
-	// Destructors here
+		// Destructors here
 	} // End
 
 	////Gdiplus::GdiplusShutdown(gdiplusToken);

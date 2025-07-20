@@ -17,6 +17,7 @@
 
 #include "stdafx.h"
 #include "FileDialogEx.h"
+#include <VersionHelpers.h>
 
 FileDialogEx::FileDialogEx()
 {
@@ -176,7 +177,7 @@ bool FileDialogEx::DoModalFileFolderVista(HWND wnd, bool isSave, bool isFolder, 
 		IFileOpenDialog* dlg = nullptr;
 		HRESULT hr = ::CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg));
 		//HRESULT hr = ::CoCreateInstance(__uuidof(FileOpenDialog), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg));
- 
+
 		if (FAILED(hr))
 			return false;
 
@@ -187,7 +188,7 @@ bool FileDialogEx::DoModalFileFolderVista(HWND wnd, bool isSave, bool isFolder, 
 			DWORD fos = 0;
 			dlg->GetOptions(&fos);
 			dlg->SetOptions(fos|FOS_PICKFOLDERS);
-//			dlg->SetTitle(L"A Single-Selection Dialog");
+			// dlg->SetTitle(L"A Single-Selection Dialog");
 		}
 
 		if (!isMulti)
@@ -198,12 +199,12 @@ bool FileDialogEx::DoModalFileFolderVista(HWND wnd, bool isSave, bool isFolder, 
 			{
 				IShellItem* item = nullptr;
 				hr = dlg->GetResult(&item);
- 
+
 				if (SUCCEEDED(hr))
 				{
 					LPOLESTR pwsz = nullptr;
 					hr = item->GetDisplayName(SIGDN_FILESYSPATH, &pwsz);
- 
+
 					if (SUCCEEDED(hr))
 					{
 						outFile = pwsz;
@@ -224,7 +225,7 @@ bool FileDialogEx::DoModalFileFolderVista(HWND wnd, bool isSave, bool isFolder, 
 		{
 			DWORD fos = 0;
 			dlg->GetOptions(&fos);
-			dlg->SetOptions(fos|FOS_ALLOWMULTISELECT);
+			dlg->SetOptions(fos | FOS_ALLOWMULTISELECT);
 
 			hr = dlg->Show(wnd);
 
@@ -244,12 +245,12 @@ bool FileDialogEx::DoModalFileFolderVista(HWND wnd, bool isSave, bool isFolder, 
 						{
 							IShellItem* item = nullptr;
 							hr = items->GetItemAt(i, &item);
- 
+
 							if (SUCCEEDED(hr))
 							{
 								LPOLESTR pwsz = nullptr;
 								hr = item->GetDisplayName(SIGDN_FILESYSPATH, &pwsz);
- 
+
 								if (SUCCEEDED(hr))
 								{
 									outFiles.push_back(pwsz);
@@ -279,7 +280,7 @@ bool FileDialogEx::DoModalFileFolderVista(HWND wnd, bool isSave, bool isFolder, 
 		IFileSaveDialog* dlg = nullptr;
 		HRESULT hr = ::CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg));
 		//HRESULT hr = ::CoCreateInstance(__uuidof(FileSaveDialog), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg));
- 
+
 		if (FAILED(hr))
 			return false;
 
@@ -291,12 +292,12 @@ bool FileDialogEx::DoModalFileFolderVista(HWND wnd, bool isSave, bool isFolder, 
 		{
 			IShellItem* item = nullptr;
 			hr = dlg->GetResult(&item);
- 
+
 			if (SUCCEEDED(hr))
 			{
 				LPOLESTR pwsz = nullptr;
 				hr = item->GetDisplayName(SIGDN_FILESYSPATH, &pwsz);
- 
+
 				if (SUCCEEDED(hr))
 				{
 					outFile = pwsz;
@@ -328,7 +329,7 @@ bool FileDialogEx::DoModalFolderXP(HWND wnd)
 	bi.hwndOwner = wnd;
 	bi.lpszTitle = folderTitleXP.c_str();
 	bi.pszDisplayName = dispname;
-	bi.ulFlags = BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE|BIF_NONEWFOLDERBUTTON;
+	bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE | BIF_NONEWFOLDERBUTTON;
 	bi.lpfn = BrowseCallbackProc;
 
 	LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
@@ -349,14 +350,10 @@ bool FileDialogEx::DoModalFolderXP(HWND wnd)
 
 bool FileDialogEx::IsWindowsXP()
 {
-	OSVERSIONINFO osvi = {};
-	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	::GetVersionEx(&osvi);
-
-	if (osvi.dwMajorVersion < 6)
-		return true;
-
-	return false;
+	// The original logic was to check if the OS is older than Windows Vista (major version 6.0).
+	// The modern, non-deprecated way to do this is with the IsWindowsVistaOrGreater helper function.
+	// We return true if the OS is *not* Vista or greater, which is the same as being XP or older.
+	return !IsWindowsVistaOrGreater();
 }
 
 UINT_PTR FileDialogEx::OFNHookProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -364,7 +361,7 @@ UINT_PTR FileDialogEx::OFNHookProc(HWND hDlg, UINT message, WPARAM wParam, LPARA
 	if (message == WM_NOTIFY)
 	{
 		OFNOTIFY* notify = (OFNOTIFY*)lParam;
-		switch(notify->hdr.code)
+		switch (notify->hdr.code)
 		{
 		case CDN_INITDONE:
 			HWND dlg;
@@ -404,14 +401,14 @@ int FileDialogEx::BrowseCallbackProc(HWND hDlg, UINT message, LPARAM lParam, LPA
 	return 0;
 }
 
-LRESULT FileDialogEx::FolderProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)  
-{	
+LRESULT FileDialogEx::FolderProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
 	if (message == WM_SHOWWINDOW && wParam == TRUE)
 	{
 		CenterDialog(hWnd, ::GetParent(hWnd));
 	}
 
-	return oldFolderProc(hWnd, message, wParam, lParam);  
+	return oldFolderProc(hWnd, message, wParam, lParam);
 }
 
 void FileDialogEx::CenterDialog(HWND hDlg, HWND hParentWnd)

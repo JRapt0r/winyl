@@ -17,22 +17,13 @@
 
 #include "stdafx.h"
 #include "FutureWin.h"
+#include <VersionHelpers.h>
 
 FutureWin::FutureWin()
 {
-	OSVERSIONINFO osVersion = {};
-	osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	::GetVersionEx(&osVersion);
-
-	if (osVersion.dwMajorVersion >= 6)
-	{
-		isVistaOrLater = true;
-
-		if (osVersion.dwMinorVersion >= 1 || osVersion.dwMajorVersion > 6)
-			isSevenOrLater = true;
-		if (osVersion.dwMinorVersion >= 2 || osVersion.dwMajorVersion > 6)
-			isEightOrLater = true;
-	}
+	isVistaOrLater = IsWindowsVistaOrGreater();
+	isSevenOrLater = IsWindows7OrGreater();
+	isEightOrLater = IsWindows8OrGreater();
 
 	handleTheme = ::OpenThemeData(NULL, L"Window");
 
