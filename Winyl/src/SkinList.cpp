@@ -1330,8 +1330,8 @@ ListNodeUnsafe SkinList::FindNextTrackShuffle()
 		return nullptr;
 
 	// Generate a random number
-	std::uniform_int<> randomInt(0, countNew - 1);
-	int random = randomInt(randomEngine);
+	std::uniform_int_distribution<int> distribution(0, countNew - 1);
+	int random = distribution(randomEngine);
 
 	int count = 0;
 
