@@ -50,6 +50,9 @@ INT_PTR DlgProgress::DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 		case IDC_BUTTON_MINIMIZE:
 			OnBnClickedButtonMinimize();
 			return TRUE;
+    case WM_DESTROY:
+      ClearTaskbarProgress();
+      break;
 		}
 		return TRUE;
 	}
@@ -93,8 +96,15 @@ void DlgProgress::OnInitDialog()
 	progress.Init();
 }
 
+void ClearTaskbarProgress()
+{
+	if (taskListControl)
+		taskListControl->SetProgressState(thisWnd, TBPF_NOPROGRESS);
+}
+
 void DlgProgress::OnBnClickedOK()
 {
+  ClearTaskbarProgress();
 	progress.WaitForJoin();
 
 	if (wndMessage)
@@ -105,6 +115,7 @@ void DlgProgress::OnBnClickedOK()
 
 void DlgProgress::OnBnClickedCancel()
 {
+  ClearTaskbarProgress();
 	::EnableWindow(::GetDlgItem(thisWnd, IDCANCEL), FALSE);
 	progress.Cancel();
 }
@@ -135,8 +146,9 @@ void DlgProgress::UpdateProgressMarquee(bool isMarquee)
 		::SendMessage(progressControl, PBM_SETMARQUEE, TRUE, 0);
 
 		isMarqueeTaskbarButton = true;
-		if (taskListControl)
-			taskListControl->SetProgressState(thisWnd, TBPF_INDETERMINATE);
+
+    if (!isMarquee && taskListControl)
+      taskListControl->SetProgressState(thisWnd, TBPF_NORMAL);
 	}
 	else
 	{
