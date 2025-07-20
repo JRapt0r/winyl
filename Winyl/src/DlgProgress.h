@@ -50,7 +50,8 @@ private:
 	bool isMarqueeTaskbarButton = false;
 
 	void Finish();
-	
+
+	void ClearTaskbarProgress();
 	void UpdateProgressMarquee(bool isMarquee);
 	void UpdateProgressRange(int pos, int total);
 	void UpdateProgressPos(int pos, int total);
